@@ -32,88 +32,85 @@ namespace UsingReflectionForAnalyzeExe
             // Получить сведения о консрукторе.
             ConstructorInfo[] ci = t.GetConstructors();
 
-            Console.WriteLine("Доступные конструкторы: ");
-            foreach (ConstructorInfo c in ci) {
-                // Вывести возвращаемый тип и имя.
-                Console.Write(" " + t.Name + "(");
+            // Испльзовать первый обнаруженный конструктор.
+            ParameterInfo[] cpi = ci[0].GetParameters();
+            object reflectOb;
 
-                // Вывести параметры.
-                ParameterInfo[] pi = c.GetParameters();
-                for (int i=0; i < pi.Length; i++) {
-                    Console.Write(pi[i].ParameterType.Name + " " + pi[i].Name);
-                    if (i + 1 < pi.Length)
-                        Console.Write(", ");
+            if (cpi.Length > 0)
+            {
+                object[] consargs = new object[cpi.Length];
+
+                // Инициализировать аргументы.
+                for (int n = 0; n < cpi.Length; n++)
+                {
+                    consargs[n] = 10 + n * 20;
                 }
 
-                Console.WriteLine(")");
-            }
-
-            Console.WriteLine();
-
-            // Найти подходящий конструктор.
-            int x;
-            for (x = 0; x < ci.Length; x++) {
-                ParameterInfo[] pi = ci[x].GetParameters();
-                if (pi.Length == 2)
-                    break;
-            }
-
-            if (x == ci.Length)
-            {
-                Console.WriteLine("Подходящий конструктор не найден.");
-                return;
+                // Сконструировать объект.
+                reflectOb = ci[0].Invoke(consargs);
             }
             else
-                Console.WriteLine("Найден конструктор с двумя параметрами.\n");
-
-            // Сконструировать объект.
-            object[] consargs = new object[2];
-            consargs[0] = 10;
-            consargs[1] = 20;
-            object reflectOb = ci[x].Invoke(consargs);
+                reflectOb = ci[0].Invoke(null);       
+           
 
             Console.WriteLine("\nВызов методов для объекта reflectOb.\n");
-            MethodInfo[] mi = t.GetMethods();
+
+            // Игнорировать наследуемые методы.
+            MethodInfo[] mi = t.GetMethods(
+                BindingFlags.DeclaredOnly |
+                BindingFlags.Instance|
+                BindingFlags.Public);
 
             // Вызвать каждый метод.
             foreach (MethodInfo m in mi) {
+
+                Console.WriteLine($"Вызов метода {m.Name}");
                 
                 // Получить параметры.
                 ParameterInfo[] pi = m.GetParameters();
 
-                if (m.Name.CompareTo("Set") == 0 && pi[0].ParameterType == typeof(int))
-                {
-                    object[] _args = new object[2];
-                    _args[0] = 9;
-                    _args[1] = 18;
-                    m.Invoke(reflectOb, _args);
-                }
-                else if (m.Name.CompareTo("Set") == 0 && pi[0].ParameterType == typeof(double))
-                {
-                    object[] _args = new object[2];
-                    _args[0] = 1.12;
-                    _args[1] = 23.4;
-                    m.Invoke(reflectOb, _args);
-                }
-                else if (m.Name.CompareTo("Sum") == 0)
-                {
-                    val = (int)m.Invoke(reflectOb, null);
-                    Console.WriteLine($"Сумма равна {val}");
-                }
-                else if (m.Name.CompareTo("IsBetween") == 0)
-                {
-                    object[] _args = new object[1];
-                    _args[0] = 14;
-                    if ((bool)m.Invoke(reflectOb, _args))
-                        Console.WriteLine("Значение 14 находится между x и у");
-                }
-                else if (m.Name.CompareTo("Show") == 0)
-                {
-                    m.Invoke(reflectOb, null);
-                }
+                // Выполнить методы.
+                switch (pi.Length) {
+                    case 0: //аргументы отсутсвуют.
+                        if (m.ReturnType == typeof(int))
+                        {
+                            val = (int)m.Invoke(reflectOb, null);
+                            Console.WriteLine($"Результат: {val}");
+                        }
+                        else if (m.ReturnType == typeof(void))
+                            m.Invoke(reflectOb, null);
 
+                        break;
+                    case 1: // один аргумент.
+                        if (pi[0].ParameterType == typeof(int)) {
+                            object[] argparm = new object[1];
+                            argparm[0] = 14;
+                            if ((bool)m.Invoke(reflectOb, argparm))
+                                Console.WriteLine("Значение 14 находятся между х и у");
+                            else
+                                Console.WriteLine("Значение 14 не находится между х и у");
+                        }
+
+                        break;
+                    case 2: //два аргумента
+                        if ((pi[0].ParameterType == typeof(int)) && (pi[1].ParameterType == typeof(int)))
+                        {
+                            object[] argparm = new object[2];
+                            argparm[0] = 9;
+                            argparm[1] = 18;
+                            m.Invoke(reflectOb, argparm);
+                        }
+                        else if ((pi[0].ParameterType == typeof(double)) && (pi[1].ParameterType == typeof(double))) {
+                            object[] argparm = new object[2];
+                            argparm[0] = 1.12;
+                            argparm[1] = 23.4;
+                            m.Invoke(reflectOb, argparm);
+                        }
+
+                        break;
+                }
+                Console.WriteLine();                               
             }
-
             Console.ReadKey();
         }
     }
